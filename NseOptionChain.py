@@ -1,8 +1,8 @@
 # Libraries
+import datetime
 import json
 import math
 import urllib
-import datetime
 
 import pandas as pd
 import requests
@@ -46,6 +46,11 @@ headers = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/
 bhavcopy_col_names = ['INSTRUMENT', 'SYMBOL', 'EXPIRY_DT', 'STRIKE_PR', 'OPTION_TYP', 'OPEN', 'HIGH', 'LOW', 'CLOSE',
                       'SETTLE_PR', 'CONTRACTS', 'VAL_INLAKH', 'OPEN_INT', 'CHG_IN_OI', 'TIMESTAMP']
 
+dict_bhavcopy_ce = {'CE.identifier': 'INSTRUMENT', 'CE.underlying': 'SYMBOL', 'CE.expiryDate': 'EXPIRY_DT',
+                    'CE.strikePrice': 'STRIKE_PR', 'OPTION_TYP': 'OPTION_TYP', 'OPEN': 'OPEN', 'HIGH': 'HIGH',
+                    'LOW': 'LOW', 'CE.lastPrice': 'CLOSE', 'SETTLE_PR': 'SETTLE_PR',
+                    'CE.totalTradedVolume': 'CONTRACTS', 'VAL_INLAKH': 'VAL_INLAKH', 'CE.openInterest': 'OPEN_INT',
+                    'CE.changeinOpenInterest': 'CHG_IN_OI', 'TIMESTAMP': 'TIMESTAMP'}
 df_bhavcopy = pd.DataFrame(columns=bhavcopy_col_names)
 
 instrument_types = ['FUTIDX', 'FUTSTK', 'OPTIDX', 'OPTSTK']
@@ -165,11 +170,27 @@ def download_multiple_symbols_option_chain(df_symbols, index=True):
             # # df_transpose.to_csv(scrip_name+".csv")
             # df_all = df_all.append(df_transpose)
             # imp end
-            df_temp = json_normalize(data2)
+            df_temp = json_normalize(data2).T.transpose()
             df_temp_ce = df_temp[[col for col in df_temp if col.startswith('CE')]]
             df_temp_ce = df_temp_ce[df_temp_ce['CE.strikePrice'].notna()]
+            df_temp_ce['CE.identifier'] = df_temp_ce['CE.identifier'].str[:6]
+            df_temp_ce['OPEN'] = df_temp_ce['CE.lastPrice']-df_temp_ce['CE.change']
+            df_temp_ce['HIGH'] = df_temp_ce['CE.lastPrice']
+            df_temp_ce['LOW'] = df_temp_ce['CE.lastPrice']
+            df_temp_ce['SETTLE_PR'] = df_temp_ce['CE.lastPrice']
+            df_temp_ce['VAL_INLAKH'] = 0
+            df_temp_ce['TIMESTAMP'] = timestamp
+            df_temp_ce = df_temp_ce.drop(columns=['CE.pchangeinOpenInterest','CE.change', 'CE.pChange','CE.impliedVolatility', 'CE.totalBuyQuantity', 'CE.totalSellQuantity', 'CE.bidQty',
+                                     'CE.bidprice', 'CE.askQty', 'CE.askPrice', 'CE.underlyingValue',])
+
+            df_temp_ce.rename(columns=dict_bhavcopy_ce, inplace=True)
+
+
+            df_temp_ce['OPTION_TYP'] = 'CE'
             df_temp_pe = df_temp[[col for col in df_temp if col.startswith('PE')]]
             df_temp_pe = df_temp_pe[df_temp_pe['PE.strikePrice'].notna()]
+            df_temp_pe = df_temp_pe.drop(columns=['PE.impliedVolatility', 'PE.totalBuyQuantity', 'PE.totalSellQuantity', 'PE.bidQty',
+                                     'PE.bidprice', 'PE.askQty', 'PE.askPrice', 'PE.underlyingValue'])
             print (df_temp.head())
 
         except Exception as e:
