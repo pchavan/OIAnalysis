@@ -59,7 +59,7 @@ url_equity = "https://www.nseindia.com/api/option-chain-equities?symbol="
 
 indexes = ["NIFTY", "BANKNIFTY"]
 list_of_dfs = []
-df_all = pd.DataFrame()
+# df_all = pd.DataFrame()
 # Headers
 headers = {
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36',
@@ -74,6 +74,13 @@ dict_bhavcopy_ce = {'CE.identifier': 'INSTRUMENT', 'CE.underlying': 'SYMBOL', 'C
                     'LOW': 'LOW', 'CE.lastPrice': 'CLOSE', 'SETTLE_PR': 'SETTLE_PR',
                     'CE.totalTradedVolume': 'CONTRACTS', 'VAL_INLAKH': 'VAL_INLAKH', 'CE.openInterest': 'OPEN_INT',
                     'CE.changeinOpenInterest': 'CHG_IN_OI', 'TIMESTAMP': 'TIMESTAMP'}
+
+dict_bhavcopy_pe = {'PE.identifier': 'INSTRUMENT', 'PE.underlying': 'SYMBOL', 'PE.expiryDate': 'EXPIRY_DT',
+                    'PE.strikePrice': 'STRIKE_PR', 'OPTION_TYP': 'OPTION_TYP', 'OPEN': 'OPEN', 'HIGH': 'HIGH',
+                    'LOW': 'LOW', 'PE.lastPrice': 'CLOSE', 'SETTLE_PR': 'SETTLE_PR',
+                    'PE.totalTradedVolume': 'CONTRACTS', 'VAL_INLAKH': 'VAL_INLAKH', 'PE.openInterest': 'OPEN_INT',
+                    'PE.changeinOpenInterest': 'CHG_IN_OI', 'TIMESTAMP': 'TIMESTAMP'}
+
 df_bhavcopy = pd.DataFrame(columns=bhavcopy_col_names)
 
 instrument_types = ['FUTIDX', 'FUTSTK', 'OPTIDX', 'OPTSTK']
@@ -186,7 +193,8 @@ def highest_oi_PE(num, step, nearest, url):
 
 
 def download_multiple_symbols_option_chain(df_symbols, index=True):
-    global df_all
+    global df_bhavcopy
+
     url = url_index
     if index == False:
         url = url_equity
@@ -207,6 +215,7 @@ def download_multiple_symbols_option_chain(df_symbols, index=True):
             # df_all = df_all.append(df_transpose)
             # imp end
             df_temp = json_normalize(data2).T.transpose()
+
             df_temp_ce = df_temp[[col for col in df_temp if col.startswith('CE')]]
             df_temp_ce = df_temp_ce[df_temp_ce['CE.strikePrice'].notna()]
             df_temp_ce['CE.identifier'] = df_temp_ce['CE.identifier'].str[:6]
@@ -219,17 +228,32 @@ def download_multiple_symbols_option_chain(df_symbols, index=True):
             df_temp_ce = df_temp_ce.drop(
                 columns=['CE.pchangeinOpenInterest', 'CE.change', 'CE.pChange', 'CE.impliedVolatility',
                          'CE.totalBuyQuantity', 'CE.totalSellQuantity', 'CE.bidQty',
-                         'CE.bidprice', 'CE.askQty', 'CE.askPrice', 'CE.underlyingValue', ])
-
-            df_temp_ce.rename(columns=dict_bhavcopy_ce, inplace=True)
-
+                         'CE.bidprice', 'CE.askQty', 'CE.askPrice', 'CE.underlyingValue'])
             df_temp_ce['OPTION_TYP'] = 'CE'
+            df_temp_ce.rename(columns=dict_bhavcopy_ce, inplace=True)
+            df_temp_ce = df_temp_ce[bhavcopy_col_names]
+            # df_temp_ce = df_temp_ce.sort_values(['EXPIRY_DT', 'STRIKE_PR'], ascending=[False, False])
+
             df_temp_pe = df_temp[[col for col in df_temp if col.startswith('PE')]]
             df_temp_pe = df_temp_pe[df_temp_pe['PE.strikePrice'].notna()]
+            df_temp_pe['PE.identifier'] = df_temp_pe['PE.identifier'].str[:6]
+            df_temp_pe['OPEN'] = df_temp_pe['PE.lastPrice'] - df_temp_pe['PE.change']
+            df_temp_pe['HIGH'] = df_temp_pe['PE.lastPrice']
+            df_temp_pe['LOW'] = df_temp_pe['PE.lastPrice']
+            df_temp_pe['SETTLE_PR'] = df_temp_pe['PE.lastPrice']
+            df_temp_pe['VAL_INLAKH'] = 0
+            df_temp_pe['TIMESTAMP'] = timestamp
             df_temp_pe = df_temp_pe.drop(
-                columns=['PE.impliedVolatility', 'PE.totalBuyQuantity', 'PE.totalSellQuantity', 'PE.bidQty',
+                columns=['PE.pchangeinOpenInterest', 'PE.change', 'PE.pChange', 'PE.impliedVolatility',
+                         'PE.totalBuyQuantity', 'PE.totalSellQuantity', 'PE.bidQty',
                          'PE.bidprice', 'PE.askQty', 'PE.askPrice', 'PE.underlyingValue'])
-            print(df_temp.head())
+            df_temp_pe['OPTION_TYP'] = 'PE'
+            df_temp_pe.rename(columns=dict_bhavcopy_pe, inplace=True)
+            df_temp_pe = df_temp_pe[bhavcopy_col_names]
+            # df_temp_pe.sort_values(['EXPIRY_DT', 'STRIKE_PR'], inplace=True)
+
+            df_bhavcopy = df_bhavcopy.append([df_temp_ce,df_temp_pe])
+            print(df_bhavcopy.head())
 
         except Exception as e:
             print(e)
@@ -266,21 +290,21 @@ print('\033c')
 # print(strPurple(str("Major Support in Bank Nifty:")) + str(bnf_highestoi_CE))
 # print(strPurple(str("Major Resistance in Bank Nifty:")) + str(bnf_highestoi_PE))
 
-response_text = get_data(url_nf)
-# print (response_text)
-data = json.loads(response_text)
-data2 = data['records']['data']
-df_transpose = json_normalize(data['records']['data']).T.transpose()
-print(df_transpose.head())
-df_transpose.to_csv("csvfile.csv")
+# response_text = get_data(url_nf)
+# # print (response_text)
+# data = json.loads(response_text)
+# data2 = data['records']['data']
+# df_transpose = json_normalize(data['records']['data']).T.transpose()
+# print(df_transpose.head())
+# df_transpose.to_csv("csvfile.csv")
 
 # master_index_list = json.loads(get_data(url_indices))
 master_index_df = pd.DataFrame(indexes)
 download_multiple_symbols_option_chain(master_index_df)
 
-# master_stock_list = json.loads(get_data(url_master))
-# master_stock_df = pd.DataFrame(master_stock_list)
-# download_multiple_symbols_option_chain(master_stock_df, False)
+master_stock_list = json.loads(get_data(url_master))
+master_stock_df = pd.DataFrame(master_stock_list)
+download_multiple_symbols_option_chain(master_stock_df, False)
 
-df_all.to_csv("all.csv")
+df_bhavcopy.to_csv("df_bhavcopy.csv", index=False)
 # print (response_text)
