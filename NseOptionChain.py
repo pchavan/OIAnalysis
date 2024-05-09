@@ -12,42 +12,20 @@ from pandas.io.json import json_normalize
 # Python program to print
 # colored text and background
 def strRed(skk):         return "\033[91m {}\033[00m".format(skk)
-
-
 def strGreen(skk):       return "\033[92m {}\033[00m".format(skk)
-
-
 def strYellow(skk):      return "\033[93m {}\033[00m".format(skk)
-
-
 def strLightPurple(skk): return "\033[94m {}\033[00m".format(skk)
-
-
 def strPurple(skk):      return "\033[95m {}\033[00m".format(skk)
-
-
 def strCyan(skk):        return "\033[96m {}\033[00m".format(skk)
-
-
 def strLightGray(skk):   return "\033[97m {}\033[00m".format(skk)
-
-
 def strBlack(skk):       return "\033[98m {}\033[00m".format(skk)
-
-
 def strBold(skk):        return "\033[1m {}\033[0m".format(skk)
 
 
 # Method to get nearest strikes
 def round_nearest(x, num=50): return int(math.ceil(float(x) / num) * num)
-
-
 def nearest_strike_bnf(x): return round_nearest(x, 100)
-
-
 def nearest_strike_nf(x): return round_nearest(x, 50)
-
-
 # Urls for fetching Data
 url_oc = "https://www.nseindia.com/option-chain"
 url_bnf = 'https://www.nseindia.com/api/option-chain-indices?symbol=BANKNIFTY'
