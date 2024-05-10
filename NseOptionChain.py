@@ -6,6 +6,7 @@ import urllib
 
 import pandas as pd
 import requests
+from line_profiler_pycharm import profile
 from pandas.io.json import json_normalize
 
 
@@ -34,6 +35,8 @@ url_indices = "https://www.nseindia.com/api/allIndices"
 url_master = "https://www.nseindia.com/api/master-quote"
 url_index = "https://www.nseindia.com/api/option-chain-indices?symbol="
 url_equity = "https://www.nseindia.com/api/option-chain-equities?symbol="
+url_futures = "https://www.nseindia.com/get-quotes/derivatives?symbol="
+url_futures_quote = "https://www.nseindia.com/api/quote-derivative?symbol="
 
 indexes = ["NIFTY", "BANKNIFTY"]
 list_of_dfs = []
@@ -69,11 +72,12 @@ cookies = dict()
 
 
 # Local methods
+@profile
 def set_cookie():
     request = sess.get(url_oc, headers=headers, timeout=5)
     cookies = dict(request.cookies)
 
-
+@profile
 def get_data(url):
     set_cookie()
     response = sess.get(url, headers=headers, timeout=5, cookies=cookies)
@@ -84,27 +88,27 @@ def get_data(url):
         return response.text
     return ""
 
-
+@profile
 def set_header():
-    global bnf_ul
-    global nf_ul
+    global url_bnf
+    global url_nf
     global bnf_nearest
     global nf_nearest
     response_text = get_data(url_indices)
     data = json.loads(response_text)
     for index in data["data"]:
         if index["index"] == "NIFTY 50":
-            nf_ul = index["last"]
+            url_nf = index["last"]
             print("nifty")
         if index["index"] == "NIFTY BANK":
-            bnf_ul = index["last"]
+            url_bnf = index["last"]
             print("banknifty")
-    bnf_nearest = nearest_strike_bnf(bnf_ul)
-    nf_nearest = nearest_strike_nf(nf_ul)
+    bnf_nearest = nearest_strike_bnf(url_bnf)
+    nf_nearest = nearest_strike_nf(url_nf)
 
 
 # Showing Header in structured format with Last Price and Nearest Strike
-
+@profile
 def print_header(index="", ul=0, nearest=0):
     print(
         strPurple(index.ljust(12, " ") + " => ") + strLightPurple(" Last Price: ") + strBold(str(ul)) + strLightPurple(
@@ -169,8 +173,8 @@ def highest_oi_PE(num, step, nearest, url):
                 strike = strike + step
     return max_oi_strike
 
-
-def download_multiple_symbols_option_chain(df_symbols, index=True):
+@profile
+def download_multiple_symbols_option_chain_and_futures(df_symbols, index=True):
     global df_bhavcopy
 
     url = url_index
@@ -184,53 +188,105 @@ def download_multiple_symbols_option_chain(df_symbols, index=True):
         scrip_name = row[1][0]
         print(scrip_name)
         try:
-            response_text = get_data(url + urllib.parse.quote(scrip_name))
-            data = json.loads(response_text)
-            data2 = data['records']['data']
-            # imp
-            # df_transpose = json_normalize(data['records']['data']).T.transpose()
-            # # df_transpose.to_csv(scrip_name+".csv")
-            # df_all = df_all.append(df_transpose)
-            # imp end
-            df_temp = json_normalize(data2).T.transpose()
+            # FUTURES DATA
+            # api_req = req.get('https://www.nseindia.com/api/quote-derivative?symbol=NIFTY', headers=headers).json()
+            data = []
+            api_req = json.loads(get_data(url_futures_quote + urllib.parse.quote(scrip_name)))
 
-            df_temp_ce = df_temp[[col for col in df_temp if col.startswith('CE')]]
-            df_temp_ce = df_temp_ce[df_temp_ce['CE.strikePrice'].notna()]
-            df_temp_ce['CE.identifier'] = df_temp_ce['CE.identifier'].str[:6]
-            df_temp_ce['OPEN'] = df_temp_ce['CE.lastPrice'] - df_temp_ce['CE.change']
-            df_temp_ce['HIGH'] = df_temp_ce['CE.lastPrice']
-            df_temp_ce['LOW'] = df_temp_ce['CE.lastPrice']
-            df_temp_ce['SETTLE_PR'] = df_temp_ce['CE.lastPrice']
-            df_temp_ce['VAL_INLAKH'] = 0
-            df_temp_ce['TIMESTAMP'] = timestamp
-            df_temp_ce = df_temp_ce.drop(
-                columns=['CE.pchangeinOpenInterest', 'CE.change', 'CE.pChange', 'CE.impliedVolatility',
-                         'CE.totalBuyQuantity', 'CE.totalSellQuantity', 'CE.bidQty',
-                         'CE.bidprice', 'CE.askQty', 'CE.askPrice', 'CE.underlyingValue'])
-            df_temp_ce['OPTION_TYP'] = 'CE'
-            df_temp_ce.rename(columns=dict_bhavcopy_ce, inplace=True)
-            df_temp_ce = df_temp_ce[bhavcopy_col_names]
-            # df_temp_ce = df_temp_ce.sort_values(['EXPIRY_DT', 'STRIKE_PR'], ascending=[False, False])
+            for item in api_req['stocks']:
+                if (item['metadata']['instrumentType'] == 'Stock Futures') or (item['metadata']['instrumentType'] == 'Index Futures'):
+                    data.append([
+                        item['metadata']['identifier'][:6],
+                        scrip_name,
+                        item['metadata']['expiryDate'],
+                        "0", "XX",
+                        item['metadata']['openPrice'],
+                        item['metadata']['highPrice'],
+                        item['metadata']['lowPrice'],
+                        item['metadata']['lastPrice'],
+                        item['metadata']['lastPrice'],
+                        item['marketDeptOrderBook']['tradeInfo']['tradedVolume'],
+                        item['marketDeptOrderBook']['tradeInfo']['value'],
+                        item['marketDeptOrderBook']['tradeInfo']['openInterest'],
+                        item['marketDeptOrderBook']['tradeInfo']['changeinOpenInterest'],
+                        timestamp
+                    ])
+                if (item['metadata']['instrumentType'] == 'Index Options') or (item['metadata']['instrumentType'] == 'Stock Options'):
+                    optionType = "AA"
+                    if (item['metadata']['optionType'] == "Call"):
+                        optionType = "CE"
+                    else:
+                        if (item['metadata']['optionType'] == "Put"):
+                            optionType = "PE"
+                    data.append([
+                        item['metadata']['identifier'][:6],
+                        scrip_name,
+                        item['metadata']['expiryDate'],
+                        item['metadata']['strikePrice'],
+                        optionType,
+                        item['metadata']['openPrice'],
+                        item['metadata']['highPrice'],
+                        item['metadata']['lowPrice'],
+                        item['metadata']['lastPrice'],
+                        item['metadata']['lastPrice'],
+                        item['marketDeptOrderBook']['tradeInfo']['tradedVolume'],
+                        item['marketDeptOrderBook']['tradeInfo']['value'],
+                        item['marketDeptOrderBook']['tradeInfo']['openInterest'],
+                        item['marketDeptOrderBook']['tradeInfo']['changeinOpenInterest'],
+                        timestamp
+                    ])
 
-            df_temp_pe = df_temp[[col for col in df_temp if col.startswith('PE')]]
-            df_temp_pe = df_temp_pe[df_temp_pe['PE.strikePrice'].notna()]
-            df_temp_pe['PE.identifier'] = df_temp_pe['PE.identifier'].str[:6]
-            df_temp_pe['OPEN'] = df_temp_pe['PE.lastPrice'] - df_temp_pe['PE.change']
-            df_temp_pe['HIGH'] = df_temp_pe['PE.lastPrice']
-            df_temp_pe['LOW'] = df_temp_pe['PE.lastPrice']
-            df_temp_pe['SETTLE_PR'] = df_temp_pe['PE.lastPrice']
-            df_temp_pe['VAL_INLAKH'] = 0
-            df_temp_pe['TIMESTAMP'] = timestamp
-            df_temp_pe = df_temp_pe.drop(
-                columns=['PE.pchangeinOpenInterest', 'PE.change', 'PE.pChange', 'PE.impliedVolatility',
-                         'PE.totalBuyQuantity', 'PE.totalSellQuantity', 'PE.bidQty',
-                         'PE.bidprice', 'PE.askQty', 'PE.askPrice', 'PE.underlyingValue'])
-            df_temp_pe['OPTION_TYP'] = 'PE'
-            df_temp_pe.rename(columns=dict_bhavcopy_pe, inplace=True)
-            df_temp_pe = df_temp_pe[bhavcopy_col_names]
-            # df_temp_pe.sort_values(['EXPIRY_DT', 'STRIKE_PR'], inplace=True)
+            df_temp_futures = pd.DataFrame(data, columns=bhavcopy_col_names)
+            # df_temp_futures.sort_values(by=['INSTRUMENT','EXPIRY_DT', 'STRIKE_PR','OPTION_TYP'], ascending = [True, True, True, True], inplace=True)
+            # OPTIONS CHAIN
+            # response_text = get_data(url + urllib.parse.quote(scrip_name))
+            # data = json.loads(response_text)
+            # data2 = data['records']['data']
+            # # imp
+            # # df_transpose = json_normalize(data['records']['data']).T.transpose()
+            # # # df_transpose.to_csv(scrip_name+".csv")
+            # # df_all = df_all.append(df_transpose)
+            # # imp end
+            # df_temp = json_normalize(data2).T.transpose()
+            #
+            # df_temp_ce = df_temp[[col for col in df_temp if col.startswith('CE')]]
+            # df_temp_ce = df_temp_ce[df_temp_ce['CE.strikePrice'].notna()]
+            # df_temp_ce['CE.identifier'] = df_temp_ce['CE.identifier'].str[:6]
+            # df_temp_ce['OPEN'] = df_temp_ce['CE.lastPrice'] - df_temp_ce['CE.change']
+            # df_temp_ce['HIGH'] = df_temp_ce['CE.lastPrice']
+            # df_temp_ce['LOW'] = df_temp_ce['CE.lastPrice']
+            # df_temp_ce['SETTLE_PR'] = df_temp_ce['CE.lastPrice']
+            # df_temp_ce['VAL_INLAKH'] = 0
+            # df_temp_ce['TIMESTAMP'] = timestamp
+            # df_temp_ce = df_temp_ce.drop(
+            #     columns=['CE.pchangeinOpenInterest', 'CE.change', 'CE.pChange', 'CE.impliedVolatility',
+            #              'CE.totalBuyQuantity', 'CE.totalSellQuantity', 'CE.bidQty',
+            #              'CE.bidprice', 'CE.askQty', 'CE.askPrice', 'CE.underlyingValue'])
+            # df_temp_ce['OPTION_TYP'] = 'CE'
+            # df_temp_ce.rename(columns=dict_bhavcopy_ce, inplace=True)
+            # df_temp_ce = df_temp_ce[bhavcopy_col_names]
+            # # df_temp_ce = df_temp_ce.sort_values(['EXPIRY_DT', 'STRIKE_PR'], ascending=[False, False])
+            #
+            # df_temp_pe = df_temp[[col for col in df_temp if col.startswith('PE')]]
+            # df_temp_pe = df_temp_pe[df_temp_pe['PE.strikePrice'].notna()]
+            # df_temp_pe['PE.identifier'] = df_temp_pe['PE.identifier'].str[:6]
+            # df_temp_pe['OPEN'] = df_temp_pe['PE.lastPrice'] - df_temp_pe['PE.change']
+            # df_temp_pe['HIGH'] = df_temp_pe['PE.lastPrice']
+            # df_temp_pe['LOW'] = df_temp_pe['PE.lastPrice']
+            # df_temp_pe['SETTLE_PR'] = df_temp_pe['PE.lastPrice']
+            # df_temp_pe['VAL_INLAKH'] = 0
+            # df_temp_pe['TIMESTAMP'] = timestamp
+            # df_temp_pe = df_temp_pe.drop(
+            #     columns=['PE.pchangeinOpenInterest', 'PE.change', 'PE.pChange', 'PE.impliedVolatility',
+            #              'PE.totalBuyQuantity', 'PE.totalSellQuantity', 'PE.bidQty',
+            #              'PE.bidprice', 'PE.askQty', 'PE.askPrice', 'PE.underlyingValue'])
+            # df_temp_pe['OPTION_TYP'] = 'PE'
+            # df_temp_pe.rename(columns=dict_bhavcopy_pe, inplace=True)
+            # df_temp_pe = df_temp_pe[bhavcopy_col_names]
+            # # df_temp_pe.sort_values(['EXPIRY_DT', 'STRIKE_PR'], inplace=True)
 
-            df_bhavcopy = df_bhavcopy.append([df_temp_ce,df_temp_pe])
+            # df_bhavcopy = df_bhavcopy.append([df_temp_futures,df_temp_ce,df_temp_pe])
+            df_bhavcopy = df_bhavcopy.append(df_temp_futures)
             print(df_bhavcopy.head())
 
         except Exception as e:
@@ -278,11 +334,11 @@ print('\033c')
 
 # master_index_list = json.loads(get_data(url_indices))
 master_index_df = pd.DataFrame(indexes)
-download_multiple_symbols_option_chain(master_index_df)
+download_multiple_symbols_option_chain_and_futures(master_index_df)
 
 master_stock_list = json.loads(get_data(url_master))
 master_stock_df = pd.DataFrame(master_stock_list)
-download_multiple_symbols_option_chain(master_stock_df, False)
+download_multiple_symbols_option_chain_and_futures(master_stock_df, False)
 
 df_bhavcopy.to_csv("df_bhavcopy.csv", index=False)
 # print (response_text)
