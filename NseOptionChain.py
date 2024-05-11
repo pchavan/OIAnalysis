@@ -2,12 +2,14 @@
 import datetime
 import json
 import math
+import sys
 import urllib
+import win32com.client
 
 import pandas as pd
 import requests
 from line_profiler_pycharm import profile
-from pandas.io.json import json_normalize
+import pathlib
 
 
 # Python program to print
@@ -39,6 +41,13 @@ url_futures = "https://www.nseindia.com/get-quotes/derivatives?symbol="
 url_futures_quote = "https://www.nseindia.com/api/quote-derivative?symbol="
 
 indexes = ["NIFTY", "BANKNIFTY"]
+nifty_50 = ['ADANIENT', 'ADANIPORTS', 'APOLLOHOSP', 'ASIANPAINT', 'AXISBANK', 'BAJAJ-AUTO', 'BAJFINANCE', 'BAJAJFINSV',
+            'BPCL', 'BHARTIARTL', 'BRITANNIA', 'CIPLA', 'COALINDIA', 'DIVISLAB', 'DRREDDY', 'EICHERMOT', 'GRASIM',
+            'HCLTECH', 'HDFCBANK', 'HDFCLIFE', 'HEROMOTOCO', 'HINDALCO', 'HINDUNILVR', 'ICICIBANK', 'ITC', 'INDUSINDBK',
+            'INFY', 'JSWSTEEL', 'KOTAKBANK', 'LTIM', 'LT', 'M&M', 'MARUTI', 'NTPC', 'NESTLEIND', 'ONGC', 'POWERGRID',
+            'RELIANCE', 'SBILIFE', 'SHRIRAMFIN', 'SBIN', 'SUNPHARMA', 'TCS', 'TATACONSUM', 'TATAMOTORS', 'TATASTEEL',
+            'TECHM', 'TITAN', 'ULTRACEMCO', 'WIPRO']
+banknifty = ['AXISBANK', 'HDFCBANK', 'ICICIBANK', 'INDUSINDBK', 'KOTAKBANK', 'SBIN', 'PNB', 'BANKBARODA', 'AUBANK', 'IDFCFIRSTB', 'FEDERALBNK', 'BANDHANBNK']
 list_of_dfs = []
 # df_all = pd.DataFrame()
 # Headers
@@ -333,12 +342,44 @@ print('\033c')
 # df_transpose.to_csv("csvfile.csv")
 
 # master_index_list = json.loads(get_data(url_indices))
-master_index_df = pd.DataFrame(indexes)
-download_multiple_symbols_option_chain_and_futures(master_index_df)
+param = "all"
+if (len(sys.argv) > 1):
+    param = sys.argv[1]
 
-master_stock_list = json.loads(get_data(url_master))
-master_stock_df = pd.DataFrame(master_stock_list)
-download_multiple_symbols_option_chain_and_futures(master_stock_df, False)
+param = param.lower()
 
+def switch(param):
+    if param == 'all':
+        print ("Downloading all index and stock F&O data...")
+        master_index_df = pd.DataFrame(indexes)
+        download_multiple_symbols_option_chain_and_futures(master_index_df)
+
+        master_stock_list = json.loads(get_data(url_master))
+        master_stock_df = pd.DataFrame(master_stock_list)
+        download_multiple_symbols_option_chain_and_futures(master_stock_df, False)
+    elif param == "index":
+        print ("Downloading all index F&O data...")
+        master_index_df = pd.DataFrame(indexes)
+        download_multiple_symbols_option_chain_and_futures(master_index_df)
+    elif param == "stocks":
+        print ("Downloading all stock F&O data...")
+        master_stock_list = json.loads(get_data(url_master))
+        master_stock_df = pd.DataFrame(master_stock_list)
+        download_multiple_symbols_option_chain_and_futures(master_stock_df, False)
+    elif param == "nifty":
+        print ("Downloading NIFTY50 F&O data...")
+        df_nifty_50 = pd.DataFrame(nifty_50)
+        download_multiple_symbols_option_chain_and_futures(df_nifty_50, False)
+    elif param == "banknifty":
+        print ("Downloading BANKNIFTY F&O data...")
+        df_banknifty = pd.DataFrame(banknifty)
+        download_multiple_symbols_option_chain_and_futures(df_banknifty, False)
+
+switch(param)
 df_bhavcopy.to_csv("df_bhavcopy.csv", index=False)
-# print (response_text)
+print ("Done.")
+
+# xl = win32com.client.Dispatch("Excel.Application")  #instantiate excel app
+#
+# wb = xl.Workbooks.Open(r'C:\CondaPrograms\Python\OIAnalysis\Excels\CEPEv1.1.xlsm')
+# xl.Application.Run('CEPEv1.1.xlsm!modProcess.ProcessBHAV')
