@@ -201,7 +201,7 @@ def download_multiple_symbols_option_chain_and_futures(df_symbols, index=True):
             # api_req = req.get('https://www.nseindia.com/api/quote-derivative?symbol=NIFTY', headers=headers).json()
             data = []
             api_req = json.loads(get_data(url_futures_quote + urllib.parse.quote(scrip_name)))
-
+            # x = api_req.get('stocks')
             for item in api_req['stocks']:
                 if (item['metadata']['instrumentType'] == 'Stock Futures') or (item['metadata']['instrumentType'] == 'Index Futures'):
                     data.append([
@@ -375,11 +375,22 @@ def switch(param):
         df_banknifty = pd.DataFrame(banknifty)
         download_multiple_symbols_option_chain_and_futures(df_banknifty, False)
 
+@profile
+def process_excels():
+    xl = win32com.client.Dispatch("Excel.Application")  # instantiate excel app
+
+    wb = xl.Workbooks.Open(r'C:\CondaPrograms\Python\OIAnalysis\Excels\CEPEv1.1.xlsm')
+    xl.Application.Run('CEPEv1.1.xlsm!modProcess.ProcessBHAVFromFile')
+    wb.Save()
+
+    wb = xl.Workbooks.Open(r'C:\CondaPrograms\Python\OIAnalysis\Excels\OptionsAnalyticsScanner.xlsm')
+    xl.Application.Run('OptionsAnalyticsScanner.xlsm!modProcess.ProcessBHAVFromFile')
+    wb.Save()
+    xl.Application.Quit()
+
+
 switch(param)
 df_bhavcopy.to_csv("df_bhavcopy.csv", index=False)
+process_excels()
 print ("Done.")
 
-# xl = win32com.client.Dispatch("Excel.Application")  #instantiate excel app
-#
-# wb = xl.Workbooks.Open(r'C:\CondaPrograms\Python\OIAnalysis\Excels\CEPEv1.1.xlsm')
-# xl.Application.Run('CEPEv1.1.xlsm!modProcess.ProcessBHAV')
