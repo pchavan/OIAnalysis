@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, time
 from time import sleep
 import requests
@@ -228,18 +229,22 @@ def enterInExcel(currTime,isFifteenMin):
         session = requests.session()
         for cook in cookies:
             session.cookies.set(cook, cookies[cook])
-
+        url1 = "https://www.nseindia.com/api/quote-derivative?symbol=NIFTY"
         fut = session.get(url1, headers=headers).json()
         url2 = "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY"
         session = requests.session()
 
+        output_dict = [x for x in fut['stocks'] if (x['metadata']['instrumentType'] == 'Index Futures')]
         for cook in cookies:
             session.cookies.set(cook, cookies[cook])
         opt = session.get(url2, headers=headers).json()
         # Future OI
-        lastTraded = float((fut["data"][0]["lastPrice"]).replace(',', ''))
-        futOI = int((fut["data"][0]["openInterest"]).replace(',', ''))
-        tradedVolCon = int((fut["data"][0]["numberOfContractsTraded"]).replace(',', ''))
+        # lastTraded = float((fut["data"][0]["lastPrice"]).replace(',', ''))
+        lastTraded = float((output_dict[0]["metadata"]["lastPrice"]))
+        # futOI = int((fut["data"][0]["openInterest"]).replace(',', ''))
+        futOI = int(output_dict[0]["marketDeptOrderBook"]["tradeInfo"]["openInterest"])
+        # tradedVolCon = int((fut["data"][0]["numberOfContractsTraded"]).replace(',', ''))
+        tradedVolCon = float((output_dict[0]["metadata"]["numberOfContractsTraded"]))
 
         # Option OI
         callOI = opt["filtered"]["CE"]["totOI"]
@@ -322,17 +327,22 @@ def initializeFiles(currTime):
         for cook in cookies:
             session.cookies.set(cook, cookies[cook])
 
+        url1 = "https://www.nseindia.com/api/quote-derivative?symbol=NIFTY"
         fut = session.get(url1, headers=headers).json()
         url2 = "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY"
         session = requests.session()
 
+        output_dict = [x for x in fut['stocks'] if (x['metadata']['instrumentType'] == 'Index Futures')]
         for cook in cookies:
             session.cookies.set(cook, cookies[cook])
         opt = session.get(url2, headers=headers).json()
         # Future OI
-        lastTraded = float((fut["data"][0]["lastPrice"]).replace(',', ''))
-        futOI = int((fut["data"][0]["openInterest"]).replace(',', ''))
-        tradedVolCon = int((fut["data"][0]["numberOfContractsTraded"]).replace(',', ''))
+        # lastTraded = float((fut["data"][0]["lastPrice"]).replace(',', ''))
+        lastTraded = float((output_dict[0]["metadata"]["lastPrice"]))
+        # futOI = int((fut["data"][0]["openInterest"]).replace(',', ''))
+        futOI = int(output_dict[0]["marketDeptOrderBook"]["tradeInfo"]["openInterest"])
+        # tradedVolCon = int((fut["data"][0]["numberOfContractsTraded"]).replace(',', ''))
+        tradedVolCon = float((output_dict[0]["metadata"]["numberOfContractsTraded"]))
 
         # Option OI
         callOI = opt["filtered"]["CE"]["totOI"]

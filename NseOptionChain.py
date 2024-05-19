@@ -4,12 +4,12 @@ import json
 import math
 import sys
 import urllib
-import win32com.client
 
 import pandas as pd
 import requests
+import win32com.client
 from line_profiler_pycharm import profile
-import pathlib
+from pandas.io.json import json_normalize
 
 
 # Python program to print
@@ -41,13 +41,13 @@ url_futures = "https://www.nseindia.com/get-quotes/derivatives?symbol="
 url_futures_quote = "https://www.nseindia.com/api/quote-derivative?symbol="
 
 indexes = ["NIFTY", "BANKNIFTY"]
-nifty_50 = ['ADANIENT', 'ADANIPORTS', 'APOLLOHOSP', 'ASIANPAINT', 'AXISBANK', 'BAJAJ-AUTO', 'BAJFINANCE', 'BAJAJFINSV',
+nifty_50 = ['NIFTY', 'ADANIENT', 'ADANIPORTS', 'APOLLOHOSP', 'ASIANPAINT', 'AXISBANK', 'BAJAJ-AUTO', 'BAJFINANCE', 'BAJAJFINSV',
             'BPCL', 'BHARTIARTL', 'BRITANNIA', 'CIPLA', 'COALINDIA', 'DIVISLAB', 'DRREDDY', 'EICHERMOT', 'GRASIM',
             'HCLTECH', 'HDFCBANK', 'HDFCLIFE', 'HEROMOTOCO', 'HINDALCO', 'HINDUNILVR', 'ICICIBANK', 'ITC', 'INDUSINDBK',
             'INFY', 'JSWSTEEL', 'KOTAKBANK', 'LTIM', 'LT', 'M&M', 'MARUTI', 'NTPC', 'NESTLEIND', 'ONGC', 'POWERGRID',
             'RELIANCE', 'SBILIFE', 'SHRIRAMFIN', 'SBIN', 'SUNPHARMA', 'TCS', 'TATACONSUM', 'TATAMOTORS', 'TATASTEEL',
             'TECHM', 'TITAN', 'ULTRACEMCO', 'WIPRO']
-banknifty = ['AXISBANK', 'HDFCBANK', 'ICICIBANK', 'INDUSINDBK', 'KOTAKBANK', 'SBIN', 'PNB', 'BANKBARODA', 'AUBANK', 'IDFCFIRSTB', 'FEDERALBNK', 'BANDHANBNK']
+banknifty = ['BANKNIFTY', 'AXISBANK', 'HDFCBANK', 'ICICIBANK', 'INDUSINDBK', 'KOTAKBANK', 'SBIN', 'PNB', 'BANKBARODA', 'AUBANK', 'IDFCFIRSTB', 'FEDERALBNK', 'BANDHANBNK']
 list_of_dfs = []
 # df_all = pd.DataFrame()
 # Headers
@@ -185,6 +185,7 @@ def highest_oi_PE(num, step, nearest, url):
 @profile
 def download_multiple_symbols_option_chain_and_futures(df_symbols, index=True):
     global df_bhavcopy
+    df_bhavcopy2 = pd.DataFrame(columns=bhavcopy_col_names)
 
     url = url_index
     if index == False:
@@ -202,50 +203,96 @@ def download_multiple_symbols_option_chain_and_futures(df_symbols, index=True):
             data = []
             api_req = json.loads(get_data(url_futures_quote + urllib.parse.quote(scrip_name)))
             # x = api_req.get('stocks')
-            for item in api_req['stocks']:
-                if (item['metadata']['instrumentType'] == 'Stock Futures') or (item['metadata']['instrumentType'] == 'Index Futures'):
-                    data.append([
-                        item['metadata']['identifier'][:6],
-                        scrip_name,
-                        item['metadata']['expiryDate'],
-                        "0", "XX",
-                        item['metadata']['openPrice'],
-                        item['metadata']['highPrice'],
-                        item['metadata']['lowPrice'],
-                        item['metadata']['lastPrice'],
-                        item['metadata']['lastPrice'],
-                        item['marketDeptOrderBook']['tradeInfo']['tradedVolume'],
-                        item['marketDeptOrderBook']['tradeInfo']['value'],
-                        item['marketDeptOrderBook']['tradeInfo']['openInterest'],
-                        item['marketDeptOrderBook']['tradeInfo']['changeinOpenInterest'],
-                        timestamp
-                    ])
-                if (item['metadata']['instrumentType'] == 'Index Options') or (item['metadata']['instrumentType'] == 'Stock Options'):
-                    optionType = "AA"
-                    if (item['metadata']['optionType'] == "Call"):
-                        optionType = "CE"
-                    else:
-                        if (item['metadata']['optionType'] == "Put"):
-                            optionType = "PE"
-                    data.append([
-                        item['metadata']['identifier'][:6],
-                        scrip_name,
-                        item['metadata']['expiryDate'],
-                        item['metadata']['strikePrice'],
-                        optionType,
-                        item['metadata']['openPrice'],
-                        item['metadata']['highPrice'],
-                        item['metadata']['lowPrice'],
-                        item['metadata']['lastPrice'],
-                        item['metadata']['lastPrice'],
-                        item['marketDeptOrderBook']['tradeInfo']['tradedVolume'],
-                        item['marketDeptOrderBook']['tradeInfo']['value'],
-                        item['marketDeptOrderBook']['tradeInfo']['openInterest'],
-                        item['marketDeptOrderBook']['tradeInfo']['changeinOpenInterest'],
-                        timestamp
-                    ])
+            # TODO use json_normalize(api_req['stocks']) and vectorization and remove the for loop
+            normalized = json_normalize(api_req['stocks'])
+            normalized['openInterest'] = normalized['marketDeptOrderBook.tradeInfo.openInterest'] * normalized['marketDeptOrderBook.tradeInfo.marketLot']
+            normalized['changeinOpenInterest'] = normalized['marketDeptOrderBook.tradeInfo.changeinOpenInterest'] * normalized['marketDeptOrderBook.tradeInfo.marketLot']
 
-            df_temp_futures = pd.DataFrame(data, columns=bhavcopy_col_names)
+            # normalized = normalized.drop(
+            #     columns=['volumeFreezeQuantity', 'metadata.prevClose', 'metadata.change', 'metadata.pChange',
+            #              'metadata.numberOfContractsTraded', 'metadata.totalTurnover',
+            #              'marketDeptOrderBook.totalBuyQuantity', 'marketDeptOrderBook.totalSellQuantity',
+            #              'marketDeptOrderBook.bid', 'marketDeptOrderBook.ask',
+            #              'marketDeptOrderBook.carryOfCost.price.bestBuy',
+            #              'marketDeptOrderBook.carryOfCost.price.bestSell',
+            #              'marketDeptOrderBook.carryOfCost.price.lastPrice',
+            #              'marketDeptOrderBook.carryOfCost.carry.bestBuy',
+            #              'marketDeptOrderBook.carryOfCost.carry.bestSell',
+            #              'marketDeptOrderBook.carryOfCost.carry.lastPrice', 'marketDeptOrderBook.tradeInfo.vmap',
+            #              'marketDeptOrderBook.tradeInfo.premiumTurnover',
+            #              'marketDeptOrderBook.tradeInfo.pchangeinOpenInterest',
+            #              'marketDeptOrderBook.tradeInfo.marketLot', 'marketDeptOrderBook.otherInfo.settlementPrice',
+            #              'marketDeptOrderBook.otherInfo.dailyvolatility',
+            #              'marketDeptOrderBook.otherInfo.annualisedVolatility',
+            #              'marketDeptOrderBook.otherInfo.impliedVolatility',
+            #              'marketDeptOrderBook.otherInfo.clientWisePositionLimits',
+            #              'marketDeptOrderBook.otherInfo.marketWidePositionLimits'])
+            # normalized.loc[(normalized["metadata.optionType"] == "-"), "metadata.optionType"] = "XX"
+
+            df_bhavcopy2['INSTRUMENT'] = normalized['metadata.identifier'].str.slice(stop=6)
+            df_bhavcopy2['SYMBOL'] = scrip_name
+            df_bhavcopy2['EXPIRY_DT'] = normalized['metadata.expiryDate']
+            df_bhavcopy2['STRIKE_PR'] = normalized['metadata.strikePrice']
+            df_bhavcopy2['OPTION_TYP'] = normalized['metadata.optionType']
+            df_bhavcopy2['OPEN'] = normalized['metadata.openPrice']
+            df_bhavcopy2['HIGH'] = normalized['metadata.highPrice']
+            df_bhavcopy2['LOW'] = normalized['metadata.lowPrice']
+            df_bhavcopy2['CLOSE'] = normalized['metadata.lastPrice']
+            df_bhavcopy2['SETTLE_PR'] = normalized['metadata.lastPrice']
+            df_bhavcopy2['CONTRACTS'] = normalized['marketDeptOrderBook.tradeInfo.tradedVolume']
+            df_bhavcopy2['VAL_INLAKH'] = normalized['marketDeptOrderBook.tradeInfo.value']
+            df_bhavcopy2['OPEN_INT'] = normalized['openInterest']
+            df_bhavcopy2['CHG_IN_OI'] = normalized['changeinOpenInterest']
+            df_bhavcopy2['TIMESTAMP'] = timestamp
+            df_bhavcopy2.loc[(df_bhavcopy2["OPTION_TYP"] == "-"), ["OPTION_TYP"]] = "XX"
+            df_bhavcopy2.loc[(df_bhavcopy2["OPTION_TYP"] == "Call"), ["OPTION_TYP"]] = "CE"
+            df_bhavcopy2.loc[(df_bhavcopy2["OPTION_TYP"] == "Put"), ["OPTION_TYP"]] = "PE"
+
+
+            # for item in api_req['stocks']:
+            #     if (item['metadata']['instrumentType'] == 'Stock Futures') or (item['metadata']['instrumentType'] == 'Index Futures'):
+            #         data.append([
+            #             item['metadata']['identifier'][:6],
+            #             scrip_name,
+            #             item['metadata']['expiryDate'],
+            #             "0", "XX",
+            #             item['metadata']['openPrice'],
+            #             item['metadata']['highPrice'],
+            #             item['metadata']['lowPrice'],
+            #             item['metadata']['lastPrice'],
+            #             item['metadata']['lastPrice'],
+            #             item['marketDeptOrderBook']['tradeInfo']['tradedVolume'],
+            #             item['marketDeptOrderBook']['tradeInfo']['value'],
+            #             item['marketDeptOrderBook']['tradeInfo']['openInterest'],
+            #             item['marketDeptOrderBook']['tradeInfo']['changeinOpenInterest'],
+            #             timestamp
+            #         ])
+            #     if (item['metadata']['instrumentType'] == 'Index Options') or (item['metadata']['instrumentType'] == 'Stock Options'):
+            #         optionType = "AA"
+            #         if (item['metadata']['optionType'] == "Call"):
+            #             optionType = "CE"
+            #         else:
+            #             if (item['metadata']['optionType'] == "Put"):
+            #                 optionType = "PE"
+            #         data.append([
+            #             item['metadata']['identifier'][:6],
+            #             scrip_name,
+            #             item['metadata']['expiryDate'],
+            #             item['metadata']['strikePrice'],
+            #             optionType,
+            #             item['metadata']['openPrice'],
+            #             item['metadata']['highPrice'],
+            #             item['metadata']['lowPrice'],
+            #             item['metadata']['lastPrice'],
+            #             item['metadata']['lastPrice'],
+            #             item['marketDeptOrderBook']['tradeInfo']['tradedVolume'],
+            #             item['marketDeptOrderBook']['tradeInfo']['value'],
+            #             item['marketDeptOrderBook']['tradeInfo']['openInterest'],
+            #             item['marketDeptOrderBook']['tradeInfo']['changeinOpenInterest'],
+            #             timestamp
+            #         ])
+
+            # df_temp_futures = pd.DataFrame(data, columns=bhavcopy_col_names)
             # df_temp_futures.sort_values(by=['INSTRUMENT','EXPIRY_DT', 'STRIKE_PR','OPTION_TYP'], ascending = [True, True, True, True], inplace=True)
             # OPTIONS CHAIN
             # response_text = get_data(url + urllib.parse.quote(scrip_name))
@@ -295,7 +342,8 @@ def download_multiple_symbols_option_chain_and_futures(df_symbols, index=True):
             # # df_temp_pe.sort_values(['EXPIRY_DT', 'STRIKE_PR'], inplace=True)
 
             # df_bhavcopy = df_bhavcopy.append([df_temp_futures,df_temp_ce,df_temp_pe])
-            df_bhavcopy = df_bhavcopy.append(df_temp_futures)
+            df_bhavcopy = df_bhavcopy.append(df_bhavcopy2)
+            # df_bhavcopy = df_bhavcopy2
             print(df_bhavcopy.head())
 
         except Exception as e:
@@ -375,20 +423,20 @@ def switch(param):
         df_banknifty = pd.DataFrame(banknifty)
         download_multiple_symbols_option_chain_and_futures(df_banknifty, False)
 
-@profile
 def process_excels():
     xl = win32com.client.Dispatch("Excel.Application")  # instantiate excel app
 
     wb = xl.Workbooks.Open(r'C:\CondaPrograms\Python\OIAnalysis\Excels\CEPEv1.1.xlsm')
+    xl.Application.Run('CEPEv1.1.xlsm!modProcess.ClearHistory')
     xl.Application.Run('CEPEv1.1.xlsm!modProcess.ProcessBHAVFromFile')
     wb.Save()
 
     wb = xl.Workbooks.Open(r'C:\CondaPrograms\Python\OIAnalysis\Excels\OptionsAnalyticsScanner.xlsm')
     xl.Application.Run('OptionsAnalyticsScanner.xlsm!modProcess.ProcessBHAVFromFile')
     wb.Save()
-    xl.Application.Quit()
+    # xl.Application.Quit()
 
-
+print (datetime.datetime.now().strftime("%H:%M"))
 switch(param)
 df_bhavcopy.to_csv("df_bhavcopy.csv", index=False)
 process_excels()
