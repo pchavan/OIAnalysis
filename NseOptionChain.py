@@ -344,7 +344,7 @@ def download_multiple_symbols_option_chain_and_futures(df_symbols, index=True):
             # df_bhavcopy = df_bhavcopy.append([df_temp_futures,df_temp_ce,df_temp_pe])
             df_bhavcopy = df_bhavcopy.append(df_bhavcopy2)
             # df_bhavcopy = df_bhavcopy2
-            print(df_bhavcopy.head())
+            # print(df_bhavcopy.head())
 
         except Exception as e:
             print(e)
@@ -441,8 +441,8 @@ def print_excels():
     opt_analytics_dict = pd.read_excel('C:\CondaPrograms\Python\OIAnalysis\Excels\OptionsAnalyticsScanner.xlsm', sheet_name="Result")
     print("CEPE BULLISH: ", cepe_dict.loc[cepe_dict['TREND'] == 'BULLISH'].shape[0])
     print("CEPE BEARISH: ", cepe_dict.loc[cepe_dict['TREND'] == 'BEARISH'].shape[0])
-    print("OPT ANALYTICS BULLISH: ", opt_analytics_dict.loc[opt_analytics_dict['NEUTRAL'] == 'BULLISH'].shape[0])
-    print("OPT ANALYTICS BEARISH: ",  opt_analytics_dict.loc[opt_analytics_dict['NEUTRAL'] == 'BEARISH'].shape[0])
+    print("OPT ANALYTICS BULLISH: ", opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BULLISH'].shape[0])
+    print("OPT ANALYTICS BEARISH: ",  opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH'].shape[0])
 
 
 print (datetime.datetime.now().strftime("%H:%M"))
