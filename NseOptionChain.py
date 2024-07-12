@@ -436,9 +436,19 @@ def process_excels():
     wb.Save()
     # xl.Application.Quit()
 
+def print_excels():
+    cepe_dict = pd.read_excel('C:\CondaPrograms\Python\OIAnalysis\Excels\CEPEv1.1.xlsm', sheet_name="Data")
+    opt_analytics_dict = pd.read_excel('C:\CondaPrograms\Python\OIAnalysis\Excels\OptionsAnalyticsScanner.xlsm', sheet_name="Result")
+    print("CEPE BULLISH: ", cepe_dict.loc[cepe_dict['TREND'] == 'BULLISH'].shape[0])
+    print("CEPE BEARISH: ", cepe_dict.loc[cepe_dict['TREND'] == 'BEARISH'].shape[0])
+    print("OPT ANALYTICS BULLISH: ", opt_analytics_dict.loc[opt_analytics_dict['NEUTRAL'] == 'BULLISH'].shape[0])
+    print("OPT ANALYTICS BEARISH: ",  opt_analytics_dict.loc[opt_analytics_dict['NEUTRAL'] == 'BEARISH'].shape[0])
+
+
 print (datetime.datetime.now().strftime("%H:%M"))
 switch(param)
 df_bhavcopy.to_csv("df_bhavcopy.csv", index=False)
 process_excels()
+print_excels()
 print ("Done.")
 
