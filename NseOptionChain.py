@@ -10,6 +10,7 @@ import requests
 import win32com.client
 from line_profiler_pycharm import profile
 from pandas.io.json import json_normalize
+from tabulate import tabulate
 
 
 # Python program to print
@@ -48,6 +49,8 @@ nifty_50 = ['NIFTY', 'ADANIENT', 'ADANIPORTS', 'APOLLOHOSP', 'ASIANPAINT', 'AXIS
             'RELIANCE', 'SBILIFE', 'SHRIRAMFIN', 'SBIN', 'SUNPHARMA', 'TCS', 'TATACONSUM', 'TATAMOTORS', 'TATASTEEL',
             'TECHM', 'TITAN', 'ULTRACEMCO', 'WIPRO']
 banknifty = ['BANKNIFTY', 'AXISBANK', 'HDFCBANK', 'ICICIBANK', 'INDUSINDBK', 'KOTAKBANK', 'SBIN', 'PNB', 'BANKBARODA', 'AUBANK', 'IDFCFIRSTB', 'FEDERALBNK', 'BANDHANBNK']
+midselectnifty = ['MIDCPNIFTY', 'AUBANK', 'ASHOKLEY', 'ASTRAL', 'AUROPHARMA', 'BHARATFORG', 'COFORGE', 'CONCOR', 'CUMMINSIND', 'FEDERALBNK', 'GODREJPROP', 'HDFCAMC', 'HINDPETRO',
+                  'IDFCFIRSTB', 'INDHOTEL', 'JUBLFOOD', 'LUPIN', 'MRF', 'MPHASIS', 'PIIND', 'PAGEIND', 'PERSISTENT', 'POLYCAB', 'UPL', 'IDEA', 'VOLTAS']
 list_of_dfs = []
 # df_all = pd.DataFrame()
 # Headers
@@ -397,7 +400,7 @@ if (len(sys.argv) > 1):
 param = param.lower()
 
 def switch(param):
-    if param == 'all':
+    if param == 'all' or param == "":
         print ("Downloading all index and stock F&O data...")
         master_index_df = pd.DataFrame(indexes)
         download_multiple_symbols_option_chain_and_futures(master_index_df)
@@ -414,16 +417,32 @@ def switch(param):
         master_stock_list = json.loads(get_data(url_master))
         master_stock_df = pd.DataFrame(master_stock_list)
         download_multiple_symbols_option_chain_and_futures(master_stock_df, False)
-    elif param == "nifty":
+    elif param == "nifty" or param == "nf":
         print ("Downloading NIFTY50 F&O data...")
         df_nifty_50 = pd.DataFrame(nifty_50)
         download_multiple_symbols_option_chain_and_futures(df_nifty_50, False)
-    elif param == "banknifty":
+    elif param == "banknifty" or param == "bnf":
         print ("Downloading BANKNIFTY F&O data...")
         df_banknifty = pd.DataFrame(banknifty)
         download_multiple_symbols_option_chain_and_futures(df_banknifty, False)
+    elif param == "midselectnifty" or param == "midcapnf":
+        print ("Downloading MIDSELECTNIFTY F&O data...")
+        df_midselectnifty = pd.DataFrame(midselectnifty)
+        download_multiple_symbols_option_chain_and_futures(df_midselectnifty, False)
+
+def process_bnf_expiry_date():
+    print ("Processing bnf expiry date")
+    dataframe = pd.read_csv("df_bhavcopy.csv", dtype=str)
+    nf_expiry_df = pd.DataFrame(dataframe.loc[(dataframe['SYMBOL'] == "NIFTY")&(dataframe["OPTION_TYP"]=="XX")]["EXPIRY_DT"]).reset_index(drop=True)
+    bnf_expiry_df = pd.DataFrame(dataframe.loc[(dataframe['SYMBOL'] == "BANKNIFTY")&(dataframe["OPTION_TYP"]=="XX")]["EXPIRY_DT"]).reset_index(drop=True)
+    for x in range(0,3):
+        dataframe.replace(to_replace=bnf_expiry_df["EXPIRY_DT"][x],
+                          value=nf_expiry_df["EXPIRY_DT"][x], inplace=True)
+    dataframe.to_csv("df_bhavcopy.csv",
+                     index=False)
 
 def process_excels():
+    print ("Processing Excels")
     xl = win32com.client.Dispatch("Excel.Application")  # instantiate excel app
 
     wb = xl.Workbooks.Open(r'C:\CondaPrograms\Python\OIAnalysis\Excels\CEPEv1.1.xlsm')
@@ -440,14 +459,25 @@ def print_excels():
     cepe_dict = pd.read_excel('C:\CondaPrograms\Python\OIAnalysis\Excels\CEPEv1.1.xlsm', sheet_name="Data")
     opt_analytics_dict = pd.read_excel('C:\CondaPrograms\Python\OIAnalysis\Excels\OptionsAnalyticsScanner.xlsm', sheet_name="Result")
     print("CEPE BULLISH: ", cepe_dict.loc[cepe_dict['TREND'] == 'BULLISH'].shape[0])
+    print(cepe_dict.loc[cepe_dict['TREND'] == 'BULLISH']['Symbol'].values.tolist())
+    # print("CEPE BULLISH\n", tabulate(cepe_dict.loc[cepe_dict['TREND'] == 'BULLISH'][{'Symbol', 'TREND'}], showindex=False))
     print("CEPE BEARISH: ", cepe_dict.loc[cepe_dict['TREND'] == 'BEARISH'].shape[0])
+    print(cepe_dict.loc[cepe_dict['TREND'] == 'BEARISH']['Symbol'].values.tolist())
+    # print("CEPE BEARISH\n", tabulate(cepe_dict.loc[cepe_dict['TREND'] == 'BEARISH'][{'Symbol', 'TREND'}], showindex=False))
+    print("-------------------------------------------------------------------")
     print("OPT ANALYTICS BULLISH: ", opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BULLISH'].shape[0])
-    print("OPT ANALYTICS BEARISH: ",  opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH'].shape[0])
+    print(opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BULLISH']['SYMBOL'].values.tolist())
+    print("OPT ANALYTICS BEARISH: ", opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH'].shape[0])
+    print(opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH']['SYMBOL'].values.tolist())
+    # print("OPT ANALYTICS BULLISH\n", tabulate(opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BULLISH'][{'TREND', 'SYMBOL'}], showindex=False))
+    # print("OPT ANALYTICS BEARISH\n", tabulate(opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH'][{'TREND', 'SYMBOL'}], showindex=False))
 
 
 print (datetime.datetime.now().strftime("%H:%M"))
 switch(param)
 df_bhavcopy.to_csv("df_bhavcopy.csv", index=False)
+if param == 'all':
+    process_bnf_expiry_date()
 process_excels()
 print_excels()
 print ("Done.")
