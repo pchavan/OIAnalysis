@@ -60,7 +60,7 @@ headers = {
     'accept-encoding': 'gzip, deflate, br'}
 
 bhavcopy_col_names = ['INSTRUMENT', 'SYMBOL', 'EXPIRY_DT', 'STRIKE_PR', 'OPTION_TYP', 'OPEN', 'HIGH', 'LOW', 'CLOSE',
-                      'SETTLE_PR', 'CONTRACTS', 'VAL_INLAKH', 'OPEN_INT', 'CHG_IN_OI', 'TIMESTAMP']
+                      'SETTLE_PR', 'CONTRACTS', 'VAL_INLAKH', 'OPEN_INT', 'CHG_IN_OI', 'TIMESTAMP', 'TIMESTAMP2']
 
 dict_bhavcopy_ce = {'CE.identifier': 'INSTRUMENT', 'CE.underlying': 'SYMBOL', 'CE.expiryDate': 'EXPIRY_DT',
                     'CE.strikePrice': 'STRIKE_PR', 'OPTION_TYP': 'OPTION_TYP', 'OPEN': 'OPEN', 'HIGH': 'HIGH',
@@ -78,6 +78,7 @@ df_bhavcopy = pd.DataFrame(columns=bhavcopy_col_names)
 
 instrument_types = ['FUTIDX', 'FUTSTK', 'OPTIDX', 'OPTSTK']
 timestamp = datetime.date.today().strftime("%d-%b-%Y").upper()
+# datetime.datetime.now().strftime("%d-%b-%Y %I:%M").upper()
 
 sess = requests.Session()
 cookies = dict()
@@ -205,6 +206,9 @@ def download_multiple_symbols_option_chain_and_futures(df_symbols, index=True):
             # api_req = req.get('https://www.nseindia.com/api/quote-derivative?symbol=NIFTY', headers=headers).json()
             data = []
             api_req = json.loads(get_data(url_futures_quote + urllib.parse.quote(scrip_name)))
+            # TODO
+            # get 'opt_timestamp' from api_req for data fetched timestamp column in df for disk storage and comparison
+            timestamp2 = api_req['opt_timestamp']
             # x = api_req.get('stocks')
             # TODO use json_normalize(api_req['stocks']) and vectorization and remove the for loop
             normalized = json_normalize(api_req['stocks'])
@@ -247,6 +251,7 @@ def download_multiple_symbols_option_chain_and_futures(df_symbols, index=True):
             df_bhavcopy2['OPEN_INT'] = normalized['openInterest']
             df_bhavcopy2['CHG_IN_OI'] = normalized['changeinOpenInterest']
             df_bhavcopy2['TIMESTAMP'] = timestamp
+            df_bhavcopy2['TIMESTAMP2'] = timestamp2
             df_bhavcopy2.loc[(df_bhavcopy2["OPTION_TYP"] == "-"), ["OPTION_TYP"]] = "XX"
             df_bhavcopy2.loc[(df_bhavcopy2["OPTION_TYP"] == "Call"), ["OPTION_TYP"]] = "CE"
             df_bhavcopy2.loc[(df_bhavcopy2["OPTION_TYP"] == "Put"), ["OPTION_TYP"]] = "PE"
@@ -458,19 +463,16 @@ def process_excels():
 def print_excels():
     cepe_dict = pd.read_excel('C:\CondaPrograms\Python\OIAnalysis\Excels\CEPEv1.1.xlsm', sheet_name="Data")
     opt_analytics_dict = pd.read_excel('C:\CondaPrograms\Python\OIAnalysis\Excels\OptionsAnalyticsScanner.xlsm', sheet_name="Result")
-    print("CEPE BULLISH: ", cepe_dict.loc[cepe_dict['TREND'] == 'BULLISH'].shape[0])
-    print(cepe_dict.loc[cepe_dict['TREND'] == 'BULLISH']['Symbol'].values.tolist())
+    print("-------------------------------------------------------------------")
+    print("CEPE BULLISH: ", cepe_dict.loc[cepe_dict['TREND'] == 'BULLISH'].shape[0], " ", cepe_dict.loc[cepe_dict['TREND'] == 'BULLISH']['Symbol'].values.tolist())
     # print("CEPE BULLISH\n", tabulate(cepe_dict.loc[cepe_dict['TREND'] == 'BULLISH'][{'Symbol', 'TREND'}], showindex=False))
-    print("CEPE BEARISH: ", cepe_dict.loc[cepe_dict['TREND'] == 'BEARISH'].shape[0])
-    print(cepe_dict.loc[cepe_dict['TREND'] == 'BEARISH']['Symbol'].values.tolist())
+    print("CEPE BEARISH: ", cepe_dict.loc[cepe_dict['TREND'] == 'BEARISH'].shape[0], " ", cepe_dict.loc[cepe_dict['TREND'] == 'BEARISH']['Symbol'].values.tolist())
     # print("CEPE BEARISH\n", tabulate(cepe_dict.loc[cepe_dict['TREND'] == 'BEARISH'][{'Symbol', 'TREND'}], showindex=False))
     print("-------------------------------------------------------------------")
-    print("OPT ANALYTICS BULLISH: ", opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BULLISH'].shape[0])
-    print(opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BULLISH']['SYMBOL'].values.tolist())
-    print("OPT ANALYTICS BEARISH: ", opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH'].shape[0])
-    print(opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH']['SYMBOL'].values.tolist())
-    # print("OPT ANALYTICS BULLISH\n", tabulate(opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BULLISH'][{'TREND', 'SYMBOL'}], showindex=False))
-    # print("OPT ANALYTICS BEARISH\n", tabulate(opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH'][{'TREND', 'SYMBOL'}], showindex=False))
+    print("OPT ANALYTICS BULLISH: ", opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BULLISH'].shape[0], " ", opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BULLISH']['SYMBOL'].values.tolist())
+    # print(opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BULLISH']['SYMBOL'].values.tolist())
+    print("OPT ANALYTICS BEARISH: ", opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH'].shape[0], " ", opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH']['SYMBOL'].values.tolist())
+    print("-------------------------------------------------------------------")
 
 
 print (datetime.datetime.now().strftime("%H:%M"))
