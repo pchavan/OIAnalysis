@@ -63,9 +63,19 @@ bnf_expiry_df=bnf_expiry_df.sort_values(by="XpryDt")
 # for x in range(0,3):
 #     dataframe.replace(to_replace=bnf_expiry_df["EXPIRY_DT"][x],
 #                       value=nf_expiry_df["EXPIRY_DT"][x], inplace=True)
-for x in range(0,3):
-    dataframe.replace(to_replace=bnf_expiry_df["XpryDt"][x],
-                      value=nf_expiry_df["XpryDt"][x], inplace=True)
+for x in range(0,3): #NF
+    for y in range (0, 3): #BNF
+        # Match expiry yyyy-mm from BNF and NF before replacing.
+        # Replace values ONLY for XpryDT and FininstrmActlXpryDt columns
+        if nf_expiry_df["XpryDt"][x][:7] == bnf_expiry_df["XpryDt"][y][:7]:
+            # bnf_expiry_df["XpryDt"][y]=nf_expiry_df["XpryDt"][x]
+            # dataframe["XpryDt"] = dataframe["XpryDt"].map({bnf_expiry_df["XpryDt"][y]:nf_expiry_df["XpryDt"][x]})
+            dataframe.XpryDt.replace(to_replace=bnf_expiry_df["XpryDt"][y], value=nf_expiry_df["XpryDt"][x], inplace=True)
+            dataframe.FininstrmActlXpryDt.replace(to_replace=bnf_expiry_df["XpryDt"][y], value=nf_expiry_df["XpryDt"][x],
+                                     inplace=True)
+            # dataframe["FininstrmActlXpryDt"] = dataframe["FininstrmActlXpryDt"].map({bnf_expiry_df["FininstrmActlXpryDt"][y]:nf_expiry_df["FininstrmActlXpryDt"][x]})
+            # dataframe.replace(to_replace=bnf_expiry_df["XpryDt"][x],
+            #                   value=nf_expiry_df["XpryDt"][x], inplace=True)
 
 # writing  the dataframe to another csv file
 dataframe.to_csv(cwd + os.sep + output_dir + os.sep + outputFile,

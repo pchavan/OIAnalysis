@@ -474,6 +474,10 @@ def print_excels():
     print("OPT ANALYTICS BEARISH: ", opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH'].shape[0], " ", opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH']['SYMBOL'].values.tolist())
     print("-------------------------------------------------------------------")
 
+    common_bulls = set(cepe_dict.loc[cepe_dict['TREND'] == 'BULLISH']['Symbol'].values).intersection(opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BULLISH']['SYMBOL'].values)
+    print ("Common Bulls: ", common_bulls)
+    common_bears = set(cepe_dict.loc[cepe_dict['TREND'] == 'BEARISH']['Symbol'].values).intersection(opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH']['SYMBOL'].values)
+    print ("Common Bears: ", common_bears)
 
 print (datetime.datetime.now().strftime("%H:%M"))
 switch(param)
