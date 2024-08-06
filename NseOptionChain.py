@@ -479,6 +479,11 @@ def print_excels():
     common_bears = set(cepe_dict.loc[cepe_dict['TREND'] == 'BEARISH']['Symbol'].values).intersection(opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH']['SYMBOL'].values)
     print ("Common Bears: ", common_bears)
 
+    all_bulls = set(cepe_dict.loc[cepe_dict['TREND'] == 'BULLISH']['Symbol'].values).union(opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BULLISH']['SYMBOL'].values)
+    print ("All Bulls: ", all_bulls)
+    all_bears = set(cepe_dict.loc[cepe_dict['TREND'] == 'BEARISH']['Symbol'].values).union(opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH']['SYMBOL'].values)
+    print ("All Bears: ", all_bears)
+
 print (datetime.datetime.now().strftime("%H:%M"))
 switch(param)
 df_bhavcopy.to_csv("df_bhavcopy.csv", index=False)
