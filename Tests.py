@@ -1,10 +1,14 @@
 # import MyLogger as ml
-import Tickers as t
-import OHLCDownloader as dl
+import datetime
+
 import pandas as pd
-import csv
-from tabulate import tabulate
-import xlwt
+
+import OHLCDownloader as dl
+import Tickers as t
+from openpyxl import load_workbook
+from openpyxl.formatting.rule import ColorScaleRule
+from openpyxl.styles import colors
+import Constants as c
 
 _rsc_cache = {}
 _ohlc_cache = {}
@@ -13,9 +17,10 @@ _ohlc_cache = {}
 def test_tickers():
     tickers = t.Tickers()
     tickers2 = t.Tickers()
-    print (tickers is tickers2)
+    print(tickers is tickers2)
     print(tickers.get_index_components(internal_name="IT").values)
     # ml.test.debug(tickers.get_index_components(internal_name="IT").values)
+
 
 def _check_rsc_cache(symbol=None):
     global _rsc_cache
@@ -28,7 +33,7 @@ def _check_rsc_cache(symbol=None):
     return None
 
 
-def _get_rsc_for_symbol(symbol_name = None, symbol_df=None, compare_df=None):
+def _get_rsc_for_symbol(symbol_name=None, symbol_df=None, compare_df=None):
     global _rsc_cache
     pd.options.display.float_format = '{:.2f}'.format
     # if None == symbol_name or None == symbol_df or None == compare_df:
@@ -36,10 +41,13 @@ def _get_rsc_for_symbol(symbol_name = None, symbol_df=None, compare_df=None):
     # rsc = _check_rsc_cache(symbol=symbol_name)
     # if rsc is not None:
     #     return rsc
-
+    day_no = datetime.datetime.today().weekday()
     s_i = 1
     len = 13
-    multiplier = 109
+    multiplier = 100
+
+    if day_no > 4: s_i = 0  # On weekdays, an extra row for unfinished week is also returned
+
     rsc0 = (((symbol_df['CLOSE'][s_i] / symbol_df['CLOSE'][s_i + len]) / (
             compare_df['CLOSE'][s_i] / compare_df['CLOSE'][s_i + len])) - 1) * multiplier
     rsc1 = (((symbol_df['CLOSE'][s_i + 1] / symbol_df['CLOSE'][s_i + len + 1]) / (
@@ -53,9 +61,16 @@ def _get_rsc_for_symbol(symbol_name = None, symbol_df=None, compare_df=None):
     return rsc
 
 
+def add_tv_links(df, symbol):
+    # '=HYPERLINK("#{}!A1", "{}")'.format(sheet, sheet)
+    df.insert(6, "Tradingview",
+              '=HYPERLINK("{}", "{}")'.format(c.tradingview_chart_link.format(symbol),
+                                              symbol))
+    return df
+
 def index_dl_endtoend():
     tickers = t.Tickers()
-    final_df = pd.DataFrame(columns=['Name', 'Type', 'RSC1', 'RSC2', 'RSC3'])
+    final_df = pd.DataFrame(columns=['Name', 'Type', 'Index Name', 'RSC1', 'RSC2', 'RSC3', 'Tradingview'])
     # with open("./csvoutput.csv", "wb") as csv_file:
     #     writer = csv.writer(csv_file, delimiter=',')
 
@@ -83,12 +98,15 @@ def index_dl_endtoend():
             if index != 'NIFTY':
                 rsc = _get_rsc_for_symbol(symbol_name=index, symbol_df=df_index_data, compare_df=df_nifty)
                 # if (rsc[0] < rsc [1]) or (rsc[1] < rsc[2]): continue
-                my_formatted_list = [ '%.2f' % elem for elem in rsc]
+                my_formatted_list = ['%.2f' % elem for elem in rsc]
                 # print(my_formatted_list)
                 # ml.test.info(my_formatted_list)
                 print('\n', f"{index:<20}", '   \t', my_formatted_list)
                 # row = '\n', f"{index:<20}", '   \t', my_formatted_list
-                new_row = pd.DataFrame([{'Name': index, "Type": "INDEX", "RSC1": rsc[0], "RSC2": rsc[1], "RSC3": rsc[2]}])
+                new_row = pd.DataFrame([{'Name': index, "Type": "INDEX", 'Index Name': index, "RSC1": rsc[0],
+                                         "RSC2": rsc[1], "RSC3": rsc[2]}])
+                new_row = add_tv_links(new_row, index)
+
                 final_df = pd.concat([final_df, new_row])
                 stocks_in_index = tickers.get_index_components(internal_name=index)
 
@@ -103,7 +121,8 @@ def index_dl_endtoend():
                     # print('\n','{:>20}'.format(stock), my_formatted_list)
                     # print('\n\t|->',f"{stock:<20}", f"{my_formatted_list:<20}")
                     print('\n\t|->',f"{stock:<20}", my_formatted_list)
-                    new_row = pd.DataFrame([{'Name': stock, "Type": "STOCK", "RSC1": rsc_stock[0], "RSC2": rsc_stock[1], "RSC3": rsc_stock[2]}])
+                    new_row = pd.DataFrame([{'Name': stock, "Type": "STOCK", 'Index Name': index, "RSC1": rsc_stock[0], "RSC2": rsc_stock[1], "RSC3": rsc_stock[2]}])
+                    new_row = add_tv_links(new_row, stock)
                     final_df = pd.concat([final_df, new_row])
 
                     # row = '\n\t|->',f"{stock:<20}", my_formatted_list
@@ -117,7 +136,29 @@ def index_dl_endtoend():
             # ml.test.info('\n==========================================')
         except Exception as e:
             print(e)
+
     final_df.to_csv("./output.csv")
-    final_df.to_excel("./output.xlsx")
+    final_df.to_excel("./output.xlsx", index=False)
+
+
+def format_output_excel():
+    # Load the Excel workbook
+    workbook = load_workbook('./output.xlsx')
+
+    # Select the desired sheet by name or index
+    sheet = workbook['Sheet1']  # Replace 'Sheet1' with the actual sheet name
+
+    rule = ColorScaleRule(start_type='num', start_value=0, start_color='FFFFFF',
+                          mid_type='num', mid_value=1, mid_color='FF000000',
+                          end_type='num', end_value=2, end_color='FF808080')
+    rule = ColorScaleRule(start_type='min', start_color=colors.COLOR_INDEX[2], mid_type='num', mid_value=0,
+                          mid_color=colors.WHITE, end_type='max', end_color=colors.COLOR_INDEX[3])
+    # Starting at A2 skips the header row
+    sheet.conditional_formatting.add("D2:F9999", rule)
+
+    # Save the modified workbook with conditional formatting
+    workbook.save('output_formatted.xlsx')
 
 index_dl_endtoend()
+
+format_output_excel()
