@@ -1,5 +1,5 @@
 #! python
-#USAGE csvUpdate.py fo07MAY2024bhav.csv 29-May-2024 30-May-2024
+#USAGE BhavCopyDownloadAndUpdate.py fo07MAY2024bhav.csv 29-May-2024 30-May-2024
 import sys
 import pandas as pd  
 import requests
