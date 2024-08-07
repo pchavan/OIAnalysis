@@ -10,6 +10,8 @@ import requests
 import win32com.client
 from line_profiler_pycharm import profile
 from pandas.io.json import json_normalize
+import logging
+import MyLogger as ml
 from tabulate import tabulate
 
 
@@ -82,7 +84,7 @@ timestamp = datetime.date.today().strftime("%d-%b-%Y").upper()
 
 sess = requests.Session()
 cookies = dict()
-
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 # Local methods
 @profile
@@ -461,6 +463,9 @@ def process_excels():
     # xl.Application.Quit()
 
 def print_excels():
+    print (timestamp)
+    log = ml.NseOptionChainLogger
+    log.info(timestamp)
     cepe_dict = pd.read_excel('C:\CondaPrograms\Python\OIAnalysis\Excels\CEPEv1.1.xlsm', sheet_name="Data")
     opt_analytics_dict = pd.read_excel('C:\CondaPrograms\Python\OIAnalysis\Excels\OptionsAnalyticsScanner.xlsm', sheet_name="Result")
     print("-------------------------------------------------------------------")
@@ -474,17 +479,35 @@ def print_excels():
     print("OPT ANALYTICS BEARISH: ", opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH'].shape[0], " ", opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH']['SYMBOL'].values.tolist())
     print("-------------------------------------------------------------------")
 
+    log.info("-------------------------------------------------------------------")
+    log.info(("CEPE BULLISH: ", cepe_dict.loc[cepe_dict['TREND'] == 'BULLISH'].shape[0], " ", cepe_dict.loc[cepe_dict['TREND'] == 'BULLISH']['Symbol'].values.tolist()).__str__())
+    # print("CEPE BULLISH\n", tabulate(cepe_dict.loc[cepe_dict['TREND'] == 'BULLISH'][{'Symbol', 'TREND'}], showindex=False))
+    log.info(("CEPE BEARISH: ", cepe_dict.loc[cepe_dict['TREND'] == 'BEARISH'].shape[0], " ", cepe_dict.loc[cepe_dict['TREND'] == 'BEARISH']['Symbol'].values.tolist()).__str__())
+    # print("CEPE BEARISH\n", tabulate(cepe_dict.loc[cepe_dict['TREND'] == 'BEARISH'][{'Symbol', 'TREND'}], showindex=False))
+    log.info("-------------------------------------------------------------------")
+    log.info(("OPT ANALYTICS BULLISH: ", opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BULLISH'].shape[0], " ", opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BULLISH']['SYMBOL'].values.tolist()).__str__())
+    # print(opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BULLISH']['SYMBOL'].values.tolist())
+    log.info(("OPT ANALYTICS BEARISH: ", opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH'].shape[0], " ", opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH']['SYMBOL'].values.tolist()).__str__())
+    log.info("-------------------------------------------------------------------")
+
     common_bulls = set(cepe_dict.loc[cepe_dict['TREND'] == 'BULLISH']['Symbol'].values).intersection(opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BULLISH']['SYMBOL'].values)
-    print ("Common Bulls: ", common_bulls)
+    print("Common Bulls: ", len(common_bulls), " ", common_bulls)
+    log.info(("Common Bulls: ", len(common_bulls), " ", common_bulls).__str__())
     common_bears = set(cepe_dict.loc[cepe_dict['TREND'] == 'BEARISH']['Symbol'].values).intersection(opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH']['SYMBOL'].values)
-    print ("Common Bears: ", common_bears)
+    print("Common Bears: ", len(common_bears), " ", common_bears)
+    log.info(("Common Bears: ", len(common_bears), " ", common_bears).__str__())
 
     all_bulls = set(cepe_dict.loc[cepe_dict['TREND'] == 'BULLISH']['Symbol'].values).union(opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BULLISH']['SYMBOL'].values)
-    print ("All Bulls: ", all_bulls)
+    print("All Bulls: ", len(all_bulls), " ", all_bulls)
+    log.info(("All Bulls: ", len(all_bulls), " ", all_bulls).__str__())
     all_bears = set(cepe_dict.loc[cepe_dict['TREND'] == 'BEARISH']['Symbol'].values).union(opt_analytics_dict.loc[opt_analytics_dict['TREND'] == 'BEARISH']['SYMBOL'].values)
-    print ("All Bears: ", all_bears)
+    print("All Bears: ", len(all_bears), " ", all_bears)
+    log.info(("All Bears: ", len(all_bears), " ", all_bears).__str__())
 
+log = ml.NseOptionChainLogger
 print (datetime.datetime.now().strftime("%H:%M"))
+log.info(datetime.datetime.now().strftime("%H:%M"))
+
 switch(param)
 df_bhavcopy.to_csv("df_bhavcopy.csv", index=False)
 if param == 'all':
